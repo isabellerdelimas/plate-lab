@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-function game(storage = new Map(), blockedStorage = false) {
+function game(storage = new Map(), blockedStorage = false, search = '?game=1') {
   const make = () => ({ value: '', checked: true, children: [], dataset: {}, style: {}, attributes: {}, textContent: '',
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
     setAttribute(k,v) { this.attributes[k]=v; }, removeAttribute(k) { delete this.attributes[k]; },
@@ -13,13 +13,13 @@ function game(storage = new Map(), blockedStorage = false) {
   const el = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],make()]));
   for(const tag of html.matchAll(/<input\b[^>]+>/g)) {
     const id=tag[0].match(/id="([^"]+)"/)?.[1];
-    if(id) el[id].value=tag[0].match(/value="([^"]+)"/)?.[1]||'';
+    if(id) { el[id].value=tag[0].match(/value="([^"]+)"/)?.[1]||''; for(const key of ['min','max','step']) el[id][key]=tag[0].match(new RegExp(key+'="([^"]+)"'))?.[1]||''; }
   }
   el.playbackSpeed.value='2'; el.layer.value='0'; el.experiment.value='cy-convergent';
   const ctx=new Proxy({measureText:s=>({width:s.length*9}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>o[k]||(()=>{})});
   Object.assign(el.scene,{clientWidth:1000,clientHeight:600,getContext:()=>ctx});
   const tabs=['motion','crust','density'].map(tab=>Object.assign(make(),{dataset:{tab}}));
-  const sandbox={document:{getElementById:id=>el[id],querySelectorAll:()=>tabs,createElement:make,body:{classList:{add(){}}},addEventListener(){}},devicePixelRatio:1,ResizeObserver:class{observe(){}},requestAnimationFrame(){},performance:{now:()=>1},URLSearchParams,location:{search:'?game=1'},localStorage:{getItem:k=>{if(blockedStorage)throw Error('blocked');return storage.get(k)},setItem:(k,v)=>{if(blockedStorage)throw Error('blocked');storage.set(k,v)}}};
+  const sandbox={document:{getElementById:id=>el[id],querySelectorAll:()=>tabs,createElement:make,body:{classList:{add(){}}},addEventListener(){}},devicePixelRatio:1,ResizeObserver:class{observe(){}},requestAnimationFrame(){},performance:{now:()=>1},URLSearchParams,location:{search},localStorage:{getItem:k=>{if(blockedStorage)throw Error('blocked');return storage.get(k)},setItem:(k,v)=>{if(blockedStorage)throw Error('blocked');storage.set(k,v)}}};
   vm.createContext(sandbox);scripts.forEach(s=>vm.runInContext(s,sandbox));
   const run=s=>vm.runInContext(s,sandbox);
   return {el,run,storage};
@@ -69,3 +69,15 @@ const corrupt=game(new Map([['plate-lab-earth-builder-v1','{"scores":[999]}']]))
 // Free play does not activate or require browser storage.
 assert(html.includes('href="?lab=1"'));
 console.log('Earth Builder passed: 12 missions, setup gates, locked progression, scoring, hints, no duplicate awards, replay, persistence, and blocked storage fallback.');
+
+const freeCrust=game(new Map(),false,'?lab=1&section=crust');
+assert.equal(freeCrust.run('tab'),'crust');
+assert.equal(freeCrust.el.crustControls.hidden,false);
+for (const [id,value] of [['temperature','900'],['silica','72'],['thickness','45']]) {
+  freeCrust.el[id+'Number'].value=value;freeCrust.el[id+'Number'].oninput();
+  assert.equal(Number(freeCrust.el[id].value),Number(value));
+}
+freeCrust.el.thicknessNumber.value='999';freeCrust.el.thicknessNumber.oninput();
+assert.equal(Number(freeCrust.el.thickness.value),45);
+freeCrust.el.thicknessNumber.onchange();assert.equal(Number(freeCrust.el.thicknessNumber.value),45);
+console.log('Free My Crust access and typed controls passed.');
