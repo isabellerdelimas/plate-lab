@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 function game(storage = new Map(), blockedStorage = false, search = '?game=1') {
-  const make = () => ({ value: '', checked: true, children: [], dataset: {}, style: {}, attributes: {}, textContent: '',
+  const make = () => ({ value: '', checked: true, children: [], dataset: {}, style: {}, attributes: {}, textContent: '', classList:{add(){},remove(){}}, setPointerCapture(){}, getBoundingClientRect(){return {top:0,height:600};},
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
     setAttribute(k,v) { this.attributes[k]=v; }, removeAttribute(k) { delete this.attributes[k]; },
     addEventListener(k,fn) { this[k]=fn; }, focus() {}, scrollIntoView() {}, remove() {}, click() {}
@@ -18,6 +18,7 @@ function game(storage = new Map(), blockedStorage = false, search = '?game=1') {
   el.playbackSpeed.value='2'; el.layer.value='0'; el.experiment.value='cy-convergent';
   const ctx=new Proxy({measureText:s=>({width:s.length*9}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>o[k]||(()=>{})});
   Object.assign(el.scene,{clientWidth:1000,clientHeight:600,getContext:()=>ctx});
+  Object.assign(el.planScene,{clientWidth:1000,clientHeight:220,getContext:()=>ctx});
   const tabs=['motion','crust','density'].map(tab=>Object.assign(make(),{dataset:{tab}}));
   const sandbox={document:{getElementById:id=>el[id],querySelectorAll:()=>tabs,createElement:make,body:{classList:{add(){}}},addEventListener(){}},devicePixelRatio:1,ResizeObserver:class{observe(){}},requestAnimationFrame(){},performance:{now:()=>1},URLSearchParams,location:{search},localStorage:{getItem:k=>{if(blockedStorage)throw Error('blocked');return storage.get(k)},setItem:(k,v)=>{if(blockedStorage)throw Error('blocked');storage.set(k,v)}}};
   vm.createContext(sandbox);scripts.forEach(s=>vm.runInContext(s,sandbox));
@@ -89,3 +90,39 @@ assert.equal(defaultLab.el.playback.hidden,true);
 defaultLab.el.temperatureNumber.value='700';defaultLab.el.temperatureNumber.oninput();
 assert.equal(Number(defaultLab.el.temperature.value),700);
 console.log('Original simulator defaults to freely editable My Crust without game or storage requirements.');
+
+// Follow the supplied worksheet using the actual manual controls.
+const worksheet=game(new Map(),true,'');const w=worksheet.el;
+w.worksheetQuestion.value='q9';w.worksheetQuestion.onchange();
+assert.equal(worksheet.run('tab'),'crust');
+w.earthZoom.value=100;w.earthZoom.oninput();assert.equal(worksheet.run('tab'),'density');
+assert.equal(w.densityDial.hidden,false);
+w.scene.pointerdown({pointerId:1,clientY:500});w.scene.pointerup();
+assert.equal(worksheet.run('probe'),4);assert.equal(w.dialValue.textContent,'13.0 g/cm³');
+w.earthZoom.value=25;w.earthZoom.oninput();assert.equal(worksheet.run('probe'),1,'zoom clamps probe to a visible layer');
+w.zoomCrust.onclick();assert.equal(worksheet.run('tab'),'crust');
+const cases=[['cc-convergent','pickContinent','pickContinent','chooseConvergent'],['cc-divergent','pickContinent','pickContinent','chooseDivergent'],['cc-transform','pickContinent','pickContinent','chooseTransform'],['cy-convergent','pickContinent','pickYoung','chooseConvergent'],['co-convergent','pickContinent','pickOld','chooseConvergent'],['oy-convergent','pickYoung','pickOld','chooseConvergent'],['oy-divergent','pickOld','pickYoung','chooseDivergent'],['oy-transform','pickOld','pickYoung','chooseTransform']];
+for(const [row,left,right,motion] of cases){
+ w.worksheetQuestion.value=row;w.worksheetQuestion.onchange();assert.equal(w.play.disabled,true);
+ w.play.onclick();assert.equal(worksheet.run('playing'),false);
+ w[left].onclick();w.leftSlot.onclick();w[right].onclick();w.rightSlot.onclick();w[motion].onclick();
+ assert.equal(worksheet.run('experiment'),row);assert.equal(w.play.disabled,false);assert.equal(w.planWrap.hidden,false);
+ w.jump25.onclick();assert.equal(worksheet.run('t'),25);
+ const names=w.leftSlot.textContent+'|'+w.rightSlot.textContent;
+ w.reset.onclick();assert.equal(worksheet.run('t'),0);assert.equal(w.leftSlot.textContent+'|'+w.rightSlot.textContent,names,'Rewind retains plates');
+}
+w.newCrust.onclick();assert.equal(w.play.disabled,true);assert(w.leftSlot.textContent.includes('drop crust'));
+// Actual HTML drag/drop data is validated, and knob movement controls time playback.
+w.leftSlot.ondrop({preventDefault(){},dataTransfer:{getData:()=> 'Continental'}});
+w.rightSlot.ondrop({preventDefault(){},dataTransfer:{getData:()=> 'Continental'}});
+w.leftKnob.onpointerdown({pointerId:1,clientX:100,clientY:100,preventDefault(){}});
+w.leftKnob.onpointermove({clientX:140,clientY:100});assert.equal(worksheet.run('experiment'),'cc-convergent');assert.equal(worksheet.run('playing'),true);
+w.leftKnob.onpointerup();assert.equal(worksheet.run('playing'),false);
+w.rightKnob.onpointerdown({pointerId:1,clientX:100,clientY:100,preventDefault(){}});
+w.rightKnob.onpointermove({clientX:140,clientY:100});assert.equal(worksheet.run('experiment'),'cc-divergent');w.rightKnob.onpointerup();
+w.leftKnob.onpointerdown({pointerId:1,clientX:100,clientY:100,preventDefault(){}});
+w.leftKnob.onpointermove({clientX:100,clientY:140});assert.equal(worksheet.run('experiment'),'cc-transform');w.leftKnob.onpointerup();
+w.viewTop.onchange();assert.equal(w.sceneWrap.hidden,true);w.viewBoth.onchange();assert.equal(w.sceneWrap.hidden,false);
+w.experiment.value='co-convergent';w.experiment.onchange();assert.equal(worksheet.run('mirrorMotion'),false);
+w.chooseDivergent.onclick();assert.equal(worksheet.run('experiment'),'co-convergent','Table B restricts motion to convergence');
+console.log('Worksheet controls passed: zoom/density probe, all eight manual setups, reversed plate placement, hold/release handles, drag/drop, view modes, New Crust, and Rewind.');
