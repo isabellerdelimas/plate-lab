@@ -1,0 +1,13 @@
+{
+  "name": "plate-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plate Lab: Earth Builder \u2014 a standalone plate tectonics game and worksheet simulator.",
+  "scripts": {
+    "test": "node test/plate-lab.test.js && node test/plate-game.test.js",
+    "build": "npm test && node scripts/build.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
