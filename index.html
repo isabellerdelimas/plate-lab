@@ -24,7 +24,7 @@
   <section class="mission-brief" aria-labelledby="missionTitle"><div><p id="missionNumber" class="eyebrow"></p><h2 id="missionTitle"></h2><p id="missionGoal"></p></div><div class="mission-tag" id="missionTopic"></div></section>
   <p id="gameStorage" class="hint">Progress is saved in this browser. Replaying a mission can improve your stars.</p>
 </section>
-<nav class="labnav" aria-label="Lab sections"><a class="button" href="?game=1">Back to game</a><button class="button primary" data-tab="motion" aria-pressed="true">Plate Motion · Q10–19</button><button class="button" data-tab="crust" aria-pressed="false">My Crust · Q8</button><button class="button" data-tab="density" aria-pressed="false">Earth Layers · Q9</button></nav>
+<nav class="labnav" aria-label="Lab sections"><a class="button" href="?game=1">Optional game mode</a><button class="button primary" data-tab="motion" aria-pressed="true">Plate Motion · Q10–19</button><button class="button" data-tab="crust" aria-pressed="false">My Crust · Q8</button><button class="button" data-tab="density" aria-pressed="false">Earth Layers · Q9</button></nav>
 <div class="layout"><section class="stage" aria-label="Plate boundary simulation"><div class="stagebar"><span><span class="dot"></span><b id="sceneTitle">Ocean meets continent</b></span><span id="view">Cross-section view</span></div><div class="canvaswrap"><canvas id="scene" role="img" aria-label="Schematic cross-section of an oceanic plate subducting beneath a continental plate.">Animated schematic of plate tectonics. Use the controls and explanation below to explore plate boundaries.</canvas></div><div class="legend" id="legend"><span><i class="swatch" style="background:#527982"></i>Oceanic crust</span><span><i class="swatch" style="background:#c9b78d"></i>Continental crust</span><span><i class="swatch" style="background:#78867b"></i>Lithospheric mantle</span><span><i class="swatch" style="background:#df9c73"></i>Asthenosphere</span><span><i class="swatch" style="background:#ffdb70;border-radius:50%"></i>Earthquake sites</span></div><div class="playback" id="playback"><div class="transport"><button class="button primary" id="play">▶ Play</button><button class="button" id="step" aria-label="Advance 0.5 million years">Step +</button><button class="button" id="reset">Rewind</button><button class="button" id="jump25">Go to 25 Myr</button><div class="time"><strong id="time">0.00</strong> million years</div></div><label for="timeline" class="eyebrow" style="display:block;margin-top:16px">Elapsed model time</label><input class="timeline" id="timeline" type="range" min="0" max="50" value="0" step="0.01"><div class="endpoints"><span>0 Myr</span><span>25 Myr</span><span>50 Myr</span></div><div id="status" aria-live="polite">Paused. Press Play or drag the timeline to explore.</div></div></section>
 <aside>
 <section class="panel" id="motionControls"><h2>01 / Worksheet experiment</h2><label for="experiment">Choose a row to investigate</label><select id="experiment">
@@ -174,9 +174,9 @@ function frame(now){if(playing)advance(Math.min((now-last)/1000,.1)*Number($('pl
 </script>
 <script>
 (() => {
-  if (new URLSearchParams(location.search).get('lab') === '1') {
+  if (new URLSearchParams(location.search).get('game') !== '1') {
     const section = new URLSearchParams(location.search).get('section');
-    if (['crust', 'density', 'motion'].includes(section)) switchTab(section);
+    switchTab(['crust', 'density', 'motion'].includes(section) ? section : 'crust');
     return;
   }
   const missions = [

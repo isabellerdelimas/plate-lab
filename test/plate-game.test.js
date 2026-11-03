@@ -81,3 +81,11 @@ freeCrust.el.thicknessNumber.value='999';freeCrust.el.thicknessNumber.oninput();
 assert.equal(Number(freeCrust.el.thickness.value),45);
 freeCrust.el.thicknessNumber.onchange();assert.equal(Number(freeCrust.el.thicknessNumber.value),45);
 console.log('Free My Crust access and typed controls passed.');
+
+const defaultLab=game(new Map(),true,'');
+assert.equal(defaultLab.run('tab'),'crust','opening the file defaults to My Crust');
+assert.equal(defaultLab.el.crustControls.hidden,false);
+assert.equal(defaultLab.el.playback.hidden,true);
+defaultLab.el.temperatureNumber.value='700';defaultLab.el.temperatureNumber.oninput();
+assert.equal(Number(defaultLab.el.temperature.value),700);
+console.log('Original simulator defaults to freely editable My Crust without game or storage requirements.');
